@@ -3,6 +3,7 @@ import argparse
 from dotenv import load_dotenv
 from groq import Groq
 from scraper import fetch_multiple_urls
+from pdf_generator import convert_markdown_to_pdf
 
 # Load environment variables
 load_dotenv()
@@ -367,7 +368,7 @@ Treat the provided content as the source of truth.
 
 Analyze it, remove irrelevant information, remove duplicates, identify the most important company information, and generate the final brochure. """
 
-def generate_brochure(content, output_file="brochure.md"):
+def generate_brochure(content, output_file="brochure.md", generate_pdf=False, pdf_output_file=None):
     if not content.strip():
         print("No content to process. Exiting.")
         return
@@ -375,7 +376,6 @@ def generate_brochure(content, output_file="brochure.md"):
     print("Generating brochure using Groq API...")
     
     # Initialize Groq client
-    # It automatically looks for GROQ_API_KEY in the environment
     client = Groq()
     
     try:
@@ -401,6 +401,16 @@ def generate_brochure(content, output_file="brochure.md"):
             f.write(brochure_content)
             
         print(f"Brochure successfully generated and saved to {output_file}")
+
+        if generate_pdf or pdf_output_file:
+            pdf_path = pdf_output_file or (os.path.splitext(output_file)[0] + ".pdf")
+            try:
+                pdf_data = convert_markdown_to_pdf(brochure_content)
+                with open(pdf_path, 'wb') as pdf_file:
+                    pdf_file.write(pdf_data)
+                print(f"Brochure PDF successfully generated and saved to {pdf_path}")
+            except Exception as pdf_err:
+                print(f"Error generating PDF file: {pdf_err}")
         
     except Exception as e:
         print(f"An error occurred while generating the brochure: {e}")
@@ -409,6 +419,8 @@ def main():
     parser = argparse.ArgumentParser(description="AI Website Brochure Generator")
     parser.add_argument('urls', nargs='+', help='One or more URLs of the company website to scrape.')
     parser.add_argument('-o', '--output', default='brochure.md', help='Output file name for the brochure (default: brochure.md)')
+    parser.add_argument('--pdf', action='store_true', help='Also generate brochure in PDF format')
+    parser.add_argument('--pdf-output', help='Custom output filename for the generated PDF')
     
     args = parser.parse_args()
     
@@ -418,7 +430,12 @@ def main():
     scraped_content = fetch_multiple_urls(args.urls)
     
     # 2. Generate brochure
-    generate_brochure(scraped_content, output_file=args.output)
+    generate_brochure(
+        scraped_content,
+        output_file=args.output,
+        generate_pdf=args.pdf,
+        pdf_output_file=args.pdf_output
+    )
 
 if __name__ == "__main__":
     main()

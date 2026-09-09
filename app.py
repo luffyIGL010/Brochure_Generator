@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from groq import Groq
 from scraper import fetch_multiple_urls
+from pdf_generator import convert_markdown_to_pdf
 from main import SYSTEM_PROMPT
 
 # Load environment variables
@@ -113,12 +114,27 @@ with col2:
                         # st.write_stream renders the markdown progressively!
                         output_text = st.write_stream(stream_generator)
                         
-                        st.download_button(
-                            label="Download Brochure (.md)",
-                            data=output_text,
-                            file_name="brochure.md",
-                            mime="text/markdown"
-                        )
+                        dl_col1, dl_col2 = st.columns(2)
+                        with dl_col1:
+                            st.download_button(
+                                label="📄 Download Brochure (.md)",
+                                data=output_text,
+                                file_name="brochure.md",
+                                mime="text/markdown",
+                                use_container_width=True
+                            )
+                        with dl_col2:
+                            try:
+                                pdf_bytes = convert_markdown_to_pdf(output_text)
+                                st.download_button(
+                                    label="📥 Download Brochure (.pdf)",
+                                    data=pdf_bytes,
+                                    file_name="brochure.pdf",
+                                    mime="application/pdf",
+                                    use_container_width=True
+                                )
+                            except Exception as pdf_err:
+                                st.error(f"Failed to generate PDF: {str(pdf_err)}")
                     except Exception as e:
                         st.error(f"An error occurred during generation: {str(e)}")
     else:

@@ -3,3 +3,5 @@ beautifulsoup4
 python-dotenv
 groq
 streamlit
+markdown
+xhtml2pdf
