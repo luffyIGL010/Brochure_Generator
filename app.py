@@ -113,29 +113,49 @@ with col2:
                     try:
                         # st.write_stream renders the markdown progressively!
                         output_text = st.write_stream(stream_generator)
+                        st.session_state["brochure_text"] = output_text
                         
-                        dl_col1, dl_col2 = st.columns(2)
-                        with dl_col1:
-                            st.download_button(
-                                label="📄 Download Brochure (.md)",
-                                data=output_text,
-                                file_name="brochure.md",
-                                mime="text/markdown",
-                                use_container_width=True
-                            )
-                        with dl_col2:
+                        with st.spinner("Preparing PDF brochure..."):
                             try:
                                 pdf_bytes = convert_markdown_to_pdf(output_text)
-                                st.download_button(
-                                    label="📥 Download Brochure (.pdf)",
-                                    data=pdf_bytes,
-                                    file_name="brochure.pdf",
-                                    mime="application/pdf",
-                                    use_container_width=True
-                                )
+                                st.session_state["pdf_bytes"] = pdf_bytes
+                                st.session_state["pdf_error"] = None
                             except Exception as pdf_err:
-                                st.error(f"Failed to generate PDF: {str(pdf_err)}")
+                                st.session_state["pdf_bytes"] = None
+                                st.session_state["pdf_error"] = str(pdf_err)
                     except Exception as e:
                         st.error(f"An error occurred during generation: {str(e)}")
-    else:
+
+    # Display brochure and download controls if stored in session state
+    if "brochure_text" in st.session_state and st.session_state["brochure_text"]:
+        # If not just generated on this run, render the stored markdown text
+        if not generate_btn:
+            st.markdown(st.session_state["brochure_text"])
+        
+        st.markdown("---")
+        st.markdown("#### 📥 Download Brochure")
+        
+        dl_col1, dl_col2 = st.columns(2)
+        with dl_col1:
+            if st.session_state.get("pdf_bytes"):
+                st.download_button(
+                    label="📥 Download Brochure (.pdf)",
+                    data=st.session_state["pdf_bytes"],
+                    file_name="brochure.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    type="primary"
+                )
+            elif st.session_state.get("pdf_error"):
+                st.error(f"Failed to generate PDF: {st.session_state['pdf_error']}")
+        
+        with dl_col2:
+            st.download_button(
+                label="📄 Download Brochure (.md)",
+                data=st.session_state["brochure_text"],
+                file_name="brochure.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+    elif not generate_btn:
         st.info("The generated brochure will stream here once you click 'Generate Brochure'.")

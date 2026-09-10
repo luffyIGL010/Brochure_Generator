@@ -419,7 +419,8 @@ def main():
     parser = argparse.ArgumentParser(description="AI Website Brochure Generator")
     parser.add_argument('urls', nargs='+', help='One or more URLs of the company website to scrape.')
     parser.add_argument('-o', '--output', default='brochure.md', help='Output file name for the brochure (default: brochure.md)')
-    parser.add_argument('--pdf', action='store_true', help='Also generate brochure in PDF format')
+    parser.add_argument('--pdf', action='store_true', default=True, help='Generate brochure in PDF format (default: True)')
+    parser.add_argument('--no-pdf', action='store_false', dest='pdf', help='Disable PDF brochure generation')
     parser.add_argument('--pdf-output', help='Custom output filename for the generated PDF')
     
     args = parser.parse_args()
