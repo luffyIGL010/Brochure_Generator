@@ -5,6 +5,7 @@ from groq import Groq
 from scraper import fetch_multiple_urls
 from pdf_generator import convert_markdown_to_pdf
 from main import SYSTEM_PROMPT
+import history_manager
 
 # Load environment variables
 load_dotenv()
@@ -46,12 +47,48 @@ st.markdown("""
     .stButton button:hover {
         background-color: #1D4ED8;
     }
-    /* Simple container styling */
     .block-container {
         padding-top: 3rem;
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Render Sidebar for Brochure History
+with st.sidebar:
+    st.markdown("## 📜 Brochure History")
+    st.markdown("Click any past brochure to view and download.")
+    
+    history_records = history_manager.load_history()
+    
+    if history_records:
+        for idx, item in enumerate(history_records):
+            timestamp = item.get("timestamp", "Unknown time")
+            title = item.get("title", "Brochure")
+            
+            button_label = f"🌐 {title}\n🕒 {timestamp}"
+            if st.button(button_label, key=f"hist_{item['id']}"):
+                st.session_state["brochure_text"] = item["markdown_content"]
+                st.session_state["active_timestamp"] = timestamp
+                st.session_state["active_title"] = title
+                with st.spinner("Preparing PDF brochure..."):
+                    try:
+                        st.session_state["pdf_bytes"] = convert_markdown_to_pdf(item["markdown_content"])
+                        st.session_state["pdf_error"] = None
+                    except Exception as err:
+                        st.session_state["pdf_bytes"] = None
+                        st.session_state["pdf_error"] = str(err)
+                st.rerun()
+
+        st.markdown("---")
+        if st.button("🗑️ Clear History"):
+            history_manager.clear_history()
+            st.session_state.pop("brochure_text", None)
+            st.session_state.pop("pdf_bytes", None)
+            st.session_state.pop("active_timestamp", None)
+            st.session_state.pop("active_title", None)
+            st.rerun()
+    else:
+        st.info("No brochure history found. Generate a brochure to save it here!")
 
 # UI Layout
 st.markdown('<p class="main-header">Corporate Brochure Generator</p>', unsafe_allow_html=True)
@@ -113,7 +150,13 @@ with col2:
                     try:
                         # st.write_stream renders the markdown progressively!
                         output_text = st.write_stream(stream_generator)
+                        
+                        # Save entry into history
+                        new_entry = history_manager.add_history_entry(urls, output_text, model_used=model_choice)
+                        
                         st.session_state["brochure_text"] = output_text
+                        st.session_state["active_timestamp"] = new_entry["timestamp"]
+                        st.session_state["active_title"] = new_entry["title"]
                         
                         with st.spinner("Preparing PDF brochure..."):
                             try:
@@ -128,6 +171,9 @@ with col2:
 
     # Display brochure and download controls if stored in session state
     if "brochure_text" in st.session_state and st.session_state["brochure_text"]:
+        if st.session_state.get("active_timestamp"):
+            st.caption(f"🕒 **Generated at:** {st.session_state['active_timestamp']}")
+            
         # If not just generated on this run, render the stored markdown text
         if not generate_btn:
             st.markdown(st.session_state["brochure_text"])
